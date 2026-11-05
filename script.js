@@ -53,7 +53,7 @@ const today = () => { const d = new Date(); return `${d.getDate()}/${d.getMonth(
 
 const ledger = {
   entries: [],
-  masters: { customer: [], supplier: [], salesman: [], purchaser: [], item: [], purity: ['99.9', '91.6', '75', '58.5'] },
+  masters: { customer: [], supplier: [], salesman: [], purchaser: [], item: [], karat: ['24K', '22K', '18K', '14K'], basis: ['Gr. Wt', 'Nt. Wt.'] },
 };
 
 const TRANSACTIONS = [
@@ -107,6 +107,7 @@ $$('[data-chip]').forEach((b) =>
   }),
 );
 $$('[data-action="back"]').forEach((b) => b.addEventListener('click', back));
+$$('[data-action="back-stock"]').forEach((b) => b.addEventListener('click', () => openStack('screenStock')));
 
 // ───────────────────────── drawer & theme ─────────────────────────
 const drawer = $('#drawerLayer');
@@ -163,15 +164,7 @@ function sendChat() {
   const typing = bot('working…', 'typing');
   setTimeout(() => { typing.remove(); bot(demoAnswer(q)); }, 900);
 }
-function demoAnswer(q) {
-  const s = q.toLowerCase();
-  const sum = (type, key) => ledger.entries.filter((e) => e.type === type).reduce((a, e) => a + e[key], 0);
-  if (s.includes('stock')) {
-    const rows = stockRows();
-    return rows.length ? rows.map((r) => `${r.item}: ${wt(r.net)} net, ${wt(r.fine)} fine`).join('\n') : 'No stock yet.';
-  }
-  if (s.includes('sale') || s.includes('bikri')) return `Total sales: ${inr(sum('sales', 'total'))} (${ledger.entries.filter((e) => e.type === 'sales').length} entries).`;
-  if (s.includes('purchase') || s.includes('kharid')) return `Total purchase: ${inr(sum('purchase', 'total'))} (${ledger.entries.filter((e) => e.type === 'purchase').length} entries).`;
+function demoAnswer() {
   return 'Demo reply.';
 }
 
@@ -186,7 +179,7 @@ $('#bars').innerHTML = [38, 62, 45, 80, 55, 70, 48]
   .map((v) => `<span style="height:${v}%;opacity:${0.55 + (v / 100) * 0.45}"></span>`).join('');
 
 // ───────────────────────── entry (sales / purchase) ─────────────────────────
-function dropdown({ label, kind, suffix = '', get, set, onChange }) {
+function dropdown({ label, kind, suffix = '', fixed = false, get, set, onChange }) {
   const wrap = document.createElement('div');
   wrap.className = 'field dd';
   let open = false, adding = false;
@@ -196,9 +189,9 @@ function dropdown({ label, kind, suffix = '', get, set, onChange }) {
     wrap.innerHTML = `<span class="label">${label}</span>
       <button type="button" class="dd-btn ${get() ? '' : 'empty'}"><span>${get() ? get() + suffix : 'Select'}</span>${svg(open ? 'chev-up' : 'chev-down', 18)}</button>
       ${open ? `<div class="dd-list">
-        ${opts.length || adding ? '' : '<div class="dd-note">No options</div>'}
+        ${opts.length || adding || fixed ? '' : '<div class="dd-note">No options</div>'}
         ${opts.map((o) => `<button type="button" class="dd-item ${o === get() ? 'sel' : ''}" data-v="${o}">${o}${suffix}</button>`).join('')}
-        ${adding
+        ${fixed ? '' : adding
           ? `<div class="dd-new"><input placeholder="New ${label.toLowerCase()}" autofocus><button type="button" data-ok>${svg('check', 18)}</button></div>`
           : `<button type="button" class="dd-add">${svg('add-circle', 18)} Add new</button>`}
       </div>` : ''}`;
@@ -222,62 +215,96 @@ function dropdown({ label, kind, suffix = '', get, set, onChange }) {
   return wrap;
 }
 
+const newItem = () => ({ name: '', code: '', design: '', gross: '', net: '', purity: '', karat: '',
+  dShape: '', dValue: '', dColor: '', dClarity: '', dWt: '', dRate: '',
+  cShape: '', cValue: '', cColor: '', cClarity: '', cWt: '', cRate: '', lRate: '', lBasis: '', lValue: '' });
+const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+const nextInvoice = (type) => {
+  const used = new Set(ledger.entries.filter((e) => e.type === type).map((e) => e.invoice).filter(Boolean));
+  return `${type === 'sales' ? 'SAL' : 'PUR'}-${String(used.size + 1).padStart(4, '0')}`;
+};
+
+const TOTAL_LABELS = ['Total Gross Weight', 'Total Net Weight', 'Total Diamond Weight', 'Total Diamond Value', 'Total Labour Amount', 'Total Amount'];
+
 function renderEntry(type) {
   const isSales = type === 'sales';
   const title = isSales ? 'Sales' : 'Purchase';
-  const partyKind = isSales ? 'customer' : 'supplier';
-  const agentKind = isSales ? 'salesman' : 'purchaser';
-  const f = { invoice: '', party: '', agent: '', item: '', gross: '', net: '', purity: '', dwt: '', drate: '', lrate: '' };
+  const head = { party: '' };
+  const items = [];
+  const invoice = nextInvoice(type);
   $('#entryTitle').textContent = `${title} report`;
   const body = $('#entryBody');
+  const inp = (label, key, it, ph = '', mode = 'decimal') =>
+    `<div class="field"><span class="label">${label}</span><input data-f="${key}" inputmode="${mode}" placeholder="${ph}" value="${esc(it[key])}"></div>`;
+  const stoneCard = (label, p, it) => `
+    <div class="float-card"><h3 class="card-title">${label}</h3>
+      <div class="row2">${inp('Shape', p + 'Shape', it, '', 'text')}${inp('Value', p + 'Value', it, '0')}</div>
+      <div class="row2">${inp('Color', p + 'Color', it, '', 'text')}${inp('Clarity', p + 'Clarity', it, '', 'text')}</div>
+      <div class="row2">${inp('Weight', p + 'Wt', it, '0')}${inp('Rate', p + 'Rate', it, '0')}</div>
+    </div>`;
+
   body.innerHTML = `
-    <div class="float-card" id="cardA">
+    <div class="float-card">
       <div class="date-row"><span class="label" style="margin:0">Date</span><span class="date-chip">${svg('calendar', 14)} ${today()}</span></div>
-      <div class="field"><span class="label">Invoice no</span><input data-f="invoice" placeholder="e.g. INV-001"></div>
-      <div id="ddParty"></div><div id="ddAgent"></div><div id="ddItem"></div>
+      <div class="date-row" style="margin-bottom:14px"><span class="label" style="margin:0">Invoice</span><span class="date-chip">${invoice}</span></div>
+      <div id="ddParty"></div>
     </div>
-    <div class="float-card" id="cardB">
-      <h3 class="card-title">Weight &amp; rates</h3>
-      <div class="row2">
-        <div class="field"><span class="label">Gross weight</span><input data-f="gross" inputmode="decimal" placeholder="0"></div>
-        <div class="field"><span class="label">Net weight</span><input data-f="net" inputmode="decimal" placeholder="0"></div>
-      </div>
-      <div id="ddPurity"></div>
-      <div class="field"><span class="label">Fine weight</span><div class="auto"><b id="oFine"></b><small>net wt × purity %</small></div></div>
-      <div class="row2">
-        <div class="field"><span class="label">Diamond weight</span><input data-f="dwt" inputmode="decimal" placeholder="0"></div>
-        <div class="field"><span class="label">Diamond rate</span><input data-f="drate" inputmode="decimal" placeholder="0"></div>
-      </div>
-      <div class="field"><span class="label">Labour rate</span><input data-f="lrate" inputmode="decimal" placeholder="0"></div>
-      <div class="field"><span class="label">Labour amount</span><div class="auto"><b id="oLab"></b><small>net wt × labour rate</small></div></div>
-      <div class="field"><span class="label">Diamond amount</span><div class="auto"><b id="oDia"></b><small>rate × weight</small></div></div>
-      <div class="total"><small>TOTAL AMOUNT</small><b id="oTotal"></b></div>
-      <button class="save" id="saveBtn" disabled>Save ${title.toLowerCase()}</button>
+    <div id="itemList"></div>
+    <div class="float-card"><h3 class="card-title">Total</h3><div id="totals"></div></div>
+    <div class="btn-row">
+      <button class="save ghost" id="addItemBtn" type="button">Add more item</button>
+      <button class="save" id="saveBtn" type="button" disabled>Save ${title.toLowerCase()}</button>
     </div>`;
 
   const calc = () => {
-    const net = num(f.net);
-    const fine = (net * num(f.purity)) / 100;
-    const lab = net * num(f.lrate);
-    const dia = num(f.drate) * num(f.dwt);
-    $('#oFine').textContent = wt(fine); $('#oLab').textContent = inr(lab);
-    $('#oDia').textContent = inr(dia); $('#oTotal').textContent = inr(lab + dia);
-    $('#saveBtn').disabled = !(f.invoice.trim() && f.party && f.item && net > 0 && num(f.purity) > 0);
-    return { net, fine, lab, dia };
+    // Totals are computed by the backend; the UI only renders them.
+    $('#totals').innerHTML = TOTAL_LABELS.map((k) => `<div class="tot-row"><span>${k}</span><b>—</b></div>`).join('');
+    $('#saveBtn').disabled = !(head.party && items.every((it) => it.name.trim()));
   };
-  $$('[data-f]', body).forEach((el) => el.addEventListener('input', () => { f[el.dataset.f] = el.value; calc(); }));
-  const mk = (id, opts) => $(id, body).appendChild(dropdown({ ...opts, onChange: calc }));
-  mk('#ddParty', { label: isSales ? 'Customer name' : 'Supplier name', kind: partyKind, get: () => f.party, set: (v) => (f.party = v) });
-  mk('#ddAgent', { label: isSales ? 'Sales man' : 'Purchaser', kind: agentKind, get: () => f.agent, set: (v) => (f.agent = v) });
-  mk('#ddItem', { label: 'Item', kind: 'item', get: () => f.item, set: (v) => (f.item = v) });
-  mk('#ddPurity', { label: 'Purity %', kind: 'purity', suffix: '%', get: () => f.purity, set: (v) => (f.purity = v) });
-  calc();
 
+  const numberItems = () => items.forEach((it, i) => {
+    $('.item-head', it.el).hidden = items.length < 2;
+    $('.item-head b', it.el).textContent = `Item ${i + 1}`;
+  });
+
+  const addItem = () => {
+    const it = newItem();
+    items.push(it);
+    const el = document.createElement('div');
+    el.innerHTML = `
+      <div class="item-head"><b></b><button type="button" class="item-rm">Remove</button></div>
+      <div class="float-card">
+        ${inp('Item name', 'name', it, '', 'text')}${inp('Jewell code', 'code', it, '', 'text')}${inp('Design no.', 'design', it, '', 'text')}
+      </div>
+      <div class="float-card"><h3 class="card-title">Gold</h3>
+        <div class="row2">${inp('Gross weight', 'gross', it, '0')}${inp('Net weight', 'net', it, '0')}</div>
+        <div class="row2">${inp('Purity %', 'purity', it, '0')}<div data-dd="karat"></div></div>
+      </div>
+      ${stoneCard('Diamond', 'd', it)}${stoneCard('Color Stone', 'c', it)}
+      <div class="float-card"><h3 class="card-title">Labour</h3>
+        <div class="row2">${inp('Labour rate', 'lRate', it, '0')}<div data-dd="basis"></div></div>
+        ${inp('Labour value', 'lValue', it, '0')}
+      </div>`;
+    it.el = el;
+    $$('[data-f]', el).forEach((x) => x.addEventListener('input', () => { it[x.dataset.f] = x.value; calc(); }));
+    $('[data-dd="karat"]', el).appendChild(dropdown({ label: 'Karat', kind: 'karat', get: () => it.karat, set: (v) => (it.karat = v), onChange: calc }));
+    $('[data-dd="basis"]', el).appendChild(dropdown({ label: 'Per', kind: 'basis', fixed: true, get: () => it.lBasis, set: (v) => (it.lBasis = v), onChange: calc }));
+    $('.item-rm', el).onclick = () => { items.splice(items.indexOf(it), 1); el.remove(); numberItems(); calc(); };
+    $('#itemList').appendChild(el);
+    numberItems();
+    calc();
+    return el;
+  };
+
+  $('#ddParty').appendChild(dropdown({ label: isSales ? 'Customer name' : 'Supplier name', kind: isSales ? 'customer' : 'supplier',
+    get: () => head.party, set: (v) => (head.party = v), onChange: calc }));
+  addItem();
+  $('#addItemBtn').onclick = () => { const el = addItem(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   $('#saveBtn').onclick = () => {
-    const c = calc();
-    addEntry({ type, party: f.party, item: f.item, net: c.net, fine: c.fine, dia: num(f.dwt), total: c.lab + c.dia });
+    items.forEach((it) => addEntry({ type, invoice, party: head.party, item: it.name.trim(), net: it.net }));
     toast(`${title} saved`);
     renderEntry(type);
+    $('#screenEntry .scroll').scrollTop = 0;
   };
 }
 
@@ -287,13 +314,13 @@ function addEntry(e) {
 }
 function importSheet() {
   const rows = [
-    { type: 'purchase', party: 'Mehta Bullion', item: 'Ring', net: 40, fine: 36.64, dia: 0, total: 20000 },
-    { type: 'sales', party: 'Ravi Jewels', item: 'Ring', net: 12, fine: 10.99, dia: 0.3, total: 31000 },
-    { type: 'sales', party: 'Shree Gems', item: 'Chain', net: 8, fine: 7.33, dia: 0, total: 4000 },
+    { type: 'purchase', invoice: 'PUR-0001', party: 'Mehta Bullion', item: 'Ring', net: '40' },
+    { type: 'sales', invoice: 'SAL-0001', party: 'Ravi Jewels', item: 'Ring', net: '12' },
+    { type: 'sales', invoice: 'SAL-0002', party: 'Shree Gems', item: 'Chain', net: '8' },
   ];
   rows.forEach((r) => {
     const kind = r.type === 'sales' ? 'customer' : 'supplier';
-    [[kind, r.party], ['item', r.item]].forEach(([k, v]) => !ledger.masters[k].includes(v) && ledger.masters[k].push(v));
+    if (!ledger.masters[kind].includes(r.party)) ledger.masters[kind].push(r.party);
     addEntry(r);
   });
 }
@@ -302,39 +329,55 @@ function importSheet() {
 function renderReport(type) {
   const list = ledger.entries.filter((e) => e.type === type).sort((a, b) => b.ts - a.ts);
   $('#reportTitle').textContent = type === 'sales' ? 'Sales' : 'Purchase';
-  const total = list.reduce((a, e) => a + e.total, 0);
-  const net = list.reduce((a, e) => a + e.net, 0);
   const byDate = new Map();
   list.forEach((e) => byDate.set(e.date, [...(byDate.get(e.date) || []), e]));
   $('#reportBody').innerHTML = list.length
-    ? `<div class="rep-sum"><div class="card"><small>Amount</small><b>${inr(total)}</b></div><div class="card"><small>Net weight</small><b>${wt(net)}</b></div></div>` +
-      [...byDate].map(([date, rows]) => `<div class="rep-date">${date}</div><div class="card rep-card">${rows.map((e) =>
-        `<div class="rep-row"><div><b>${e.party || '—'}</b><small>${e.item} · ${wt(e.net)}</small></div><span class="amt">${inr(e.total)}</span></div>`).join('')}</div>`).join('')
+    ? [...byDate].map(([date, rows]) => `<div class="rep-date">${date}</div><div class="card rep-card">${rows.map((e) =>
+        `<div class="rep-row"><div><b>${e.party || '—'}</b><small>${e.item}</small></div></div>`).join('')}</div>`).join('')
     : '<p class="empty-note">No data yet.</p>';
 }
 
 // ───────────────────────── stock ─────────────────────────
-function stockRows() {
-  const map = new Map();
-  for (const e of ledger.entries) {
-    const r = map.get(e.item.toLowerCase()) || { item: e.item, net: 0, fine: 0, dia: 0, in: 0, out: 0 };
-    const s = e.type === 'purchase' ? 1 : -1;
-    r.net += s * e.net; r.fine += s * e.fine; r.dia += s * e.dia;
-    if (s > 0) r.in += e.net; else r.out += e.net;
-    map.set(e.item.toLowerCase(), r);
-  }
-  return [...map.values()];
-}
+// Placeholder data. Replace with the backend response (same field names).
+const STOCK_TOTALS = ['1,250.40 g', '1,102.75 g', '84.20 ct', '₹18,40,000', '₹2,15,000', '₹62,75,000'];
+const STOCK_DEMO = [
+  { type: 'Purchase', date: '05/11/2026', invoice: 'PUR-0001', party: 'Mehta Bullion', name: 'Diamond Ladies Ring', code: 'JC-1042', design: 'D-218', amount: '₹1,85,000',
+    gold: { 'Gross weight': '12.450 g', 'Net weight': '11.800 g', 'Purity %': '75', Karat: '18K' },
+    diamond: { Shape: 'Round', Value: '₹60,000', Color: 'F', Clarity: 'VS1', Weight: '0.85 ct', Rate: '₹70,000' },
+    stone: { Shape: 'Oval', Value: '₹8,000', Color: 'Blue', Clarity: 'VVS', Weight: '0.60 ct', Rate: '₹13,000' },
+    labour: { 'Labour rate': '₹450', Per: 'Nt. Wt.', 'Labour value': '₹5,310' } },
+  { type: 'Sales', date: '04/11/2026', invoice: 'SAL-0007', party: 'Ravi Jewels', name: 'Diamond Gents Ring', code: 'JC-0877', design: 'D-104', amount: '₹2,40,000',
+    gold: { 'Gross weight': '18.200 g', 'Net weight': '17.350 g', 'Purity %': '91.6', Karat: '22K' },
+    diamond: { Shape: 'Princess', Value: '₹90,000', Color: 'G', Clarity: 'VS2', Weight: '1.20 ct', Rate: '₹75,000' },
+    stone: { Shape: '', Value: '', Color: '', Clarity: '', Weight: '', Rate: '' },
+    labour: { 'Labour rate': '₹500', Per: 'Gr. Wt', 'Labour value': '₹9,100' } },
+];
+
+const kv = (obj) => Object.entries(obj).map(([k, v]) => `<div class="kv"><span>${k}</span><b>${v || '—'}</b></div>`).join('');
+
 function renderStock() {
-  const rows = stockRows();
-  const totalFine = rows.reduce((a, r) => a + r.fine, 0);
   $('#stockBody').innerHTML = `
-    <div class="card stock-hero"><small>Total fine stock</small><b>${wt(totalFine)}</b></div>
-    ${rows.length ? rows.map((r) => `
-      <div class="card stock-row"><div><b>${r.item}</b><b style="color:${r.net < 0 ? 'var(--rose)' : 'var(--mint)'}">${wt(r.net)} net</b></div>
-        <small>Fine ${wt(r.fine)} · Diamond ${wt(r.dia)} · In ${wt(r.in)} / Out ${wt(r.out)}</small>
-</div>`).join('')
-      : '<p class="empty-note">No data yet.</p>'}`;
+    <div class="float-card"><h3 class="card-title">Total</h3>
+      ${TOTAL_LABELS.map((k, i) => `<div class="tot-row"><span>${k}</span><b>${STOCK_TOTALS[i]}</b></div>`).join('')}
+    </div>
+    <div class="float-card">
+      <div class="row2">
+        <div class="field"><span class="label">From</span><input type="date" id="stockFrom"></div>
+        <div class="field"><span class="label">To</span><input type="date" id="stockTo"></div>
+      </div>
+    </div>
+    ${STOCK_DEMO.map((s, i) => `
+      <button class="card stock-row" data-stock="${i}"><div><b>${s.name}</b><b class="amt">${s.amount}</b></div><small>${s.party}</small></button>`).join('')}`;
+  $$('[data-stock]', $('#stockBody')).forEach((b) => (b.onclick = () => { renderStockDetail(STOCK_DEMO[b.dataset.stock]); openStack('screenStockDetail'); }));
+}
+
+function renderStockDetail(s) {
+  const card = (title, obj) => `<div class="float-card"><h3 class="card-title">${title}</h3>${kv(obj)}</div>`;
+  $('#stockDetailBody').innerHTML =
+    card('Entry', { Type: s.type, Date: s.date, Invoice: s.invoice, Party: s.party }) +
+    card('Item', { 'Item name': s.name, 'Jewell code': s.code, 'Design no.': s.design }) +
+    card('Gold', s.gold) + card('Diamond', s.diamond) + card('Color Stone', s.stone) + card('Labour', s.labour) +
+    card('Total', { 'Total Amount': s.amount });
 }
 
 function toast(msg) {

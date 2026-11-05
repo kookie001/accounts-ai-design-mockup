@@ -253,3 +253,23 @@ body {
   body { align-items: stretch; } .stage { padding: 0; } .stage-label { display: none; }
   .phone { width: 100vw; height: 100vh; max-height: none; border-radius: 0; padding: 0; } .phone-screen { border-radius: 0; } .phone-punchhole { display: none; }
 }
+
+/* entry form: multi-item */
+.item-head { display: flex; align-items: center; justify-content: space-between; margin: 6px 24px 12px; }
+.item-head b { font: 700 13px 'Plus Jakarta Sans'; color: var(--brand-light); letter-spacing: .4px; text-transform: uppercase; }
+.item-rm { color: var(--rose); font: 700 13px 'Manrope'; }
+.tot-row { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+.tot-row span { color: var(--ink-soft); } .tot-row b { font: 700 14px 'Plus Jakarta Sans'; }
+.float-card .total { margin-top: 16px; }
+.btn-row { display: flex; gap: 12px; margin: 0 18px 28px; }
+.btn-row .save { flex: 1; margin-top: 0; }
+.btn-row .save.ghost { background: transparent; color: var(--ink); border: 1px solid var(--border); }
+[hidden] { display: none !important; }
+
+/* stock */
+.float-card input[type="date"] { color-scheme: dark; }
+[data-theme="light"] .float-card input[type="date"] { color-scheme: light; }
+.kv { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+.kv:last-child { border-bottom: 0; }
+.kv span { color: var(--ink-soft); } .kv b { font: 700 14px 'Plus Jakarta Sans'; text-align: right; }
+button.stock-row { display: block; width: calc(100% - 40px); color: var(--ink); text-align: left; cursor: pointer; }
