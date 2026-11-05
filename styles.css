@@ -102,7 +102,9 @@ body {
 /* ---------- home ---------- */
 .section-title { display: flex; align-items: baseline; gap: 8px; padding: 0 20px; margin-bottom: 12px; font: 700 15px 'Plus Jakarta Sans'; letter-spacing: -.1px; }
 .section-title small { color: var(--ink-faint); font: 500 11.5px 'Manrope'; letter-spacing: 0; }
-.chips { display: flex; gap: 8px; padding: 0 20px 28px; overflow-x: auto; scrollbar-width: none; }
+.chips { display: flex; gap: 8px; padding: 0 20px 28px; overflow-x: auto; scrollbar-width: none; cursor: grab; user-select: none; -webkit-overflow-scrolling: touch; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; }
 .chip { flex: none; display: inline-flex; align-items: center; gap: 7px; padding: 10px 15px; border-radius: 999px; background: var(--raised); border: 1px solid var(--border); border-top-color: var(--edge-top); color: var(--ink); font: 600 13px 'Manrope'; white-space: nowrap; transition: transform .12s, border-color .15s; }
 .chip svg { color: var(--ink-soft); }
 .chip:active { transform: scale(.95); border-color: var(--brand); }

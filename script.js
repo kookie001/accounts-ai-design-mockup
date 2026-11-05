@@ -387,4 +387,27 @@ function toast(msg) {
   setTimeout(() => t.remove(), 1600);
 }
 
+// Chip rows: swipe on touch, drag or wheel with a mouse.
+$$('.chips').forEach((row) => {
+  let down = false, startX = 0, startLeft = 0, moved = false;
+  row.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse') return;
+    down = true; moved = false; startX = e.clientX; startLeft = row.scrollLeft;
+  });
+  window.addEventListener('pointermove', (e) => {
+    if (!down) return;
+    const dx = e.clientX - startX;
+    if (Math.abs(dx) > 4) moved = true;
+    row.scrollLeft = startLeft - dx;
+  });
+  window.addEventListener('pointerup', () => { down = false; });
+  row.addEventListener('click', (e) => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } }, true);
+  row.addEventListener('wheel', (e) => {
+    if (row.scrollWidth <= row.clientWidth) return;
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    row.scrollLeft += d;
+    e.preventDefault();
+  }, { passive: false });
+});
+
 paintIcons();

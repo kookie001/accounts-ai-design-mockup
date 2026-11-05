@@ -57,6 +57,7 @@ All inputs are plain manual inputs. **No formulas run in the UI**: totals, fine 
 - **Auto fields**: Date and Invoice number are auto-filled. Everything else is manual.
 - **Removed UI logic**: fine weight, labour, diamond and total calculations, and the amount/weight summaries in the Sales/Purchase report and chat demo. The Total card shows `—`.
 - **Stock redesigned**: removed the "Total fine" card, added a Total card, a From/To date range and clickable cards (item, party, amount) with a read-only detail page. Uses two dummy cards.
+- **Chip rows scroll on desktop**: the Add data / Report rows hid their scrollbar, so Stock (and other chips) were unreachable with a mouse. They now scroll by mouse drag and mouse wheel (touch swipe already worked).
 - Fixed `script.js` cache and `$$` helper regressions found while testing.
 
 ## Files
