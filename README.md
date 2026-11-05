@@ -10,7 +10,9 @@ No build step.
 python -m http.server 8103
 ```
 
-Open `http://localhost:8103`. After pulling changes, hard refresh (`Ctrl+Shift+R`) because the browser may cache `script.js`.
+Open `http://localhost:8103`. You can also just double-click `index.html` (no server needed). It needs no install and no internet; fonts fall back to the system font when offline.
+
+After pulling changes, hard refresh (`Ctrl+Shift+R`). If a browser keeps an old copy, bump the `?v=` number on the `styles.css` / `script.js` links in `index.html`.
 
 ## Screens
 
@@ -58,6 +60,7 @@ All inputs are plain manual inputs. **No formulas run in the UI**: totals, fine 
 - **Removed UI logic**: fine weight, labour, diamond and total calculations, and the amount/weight summaries in the Sales/Purchase report and chat demo. The Total card shows `—`.
 - **Stock redesigned**: removed the "Total fine" card, added a Total card, a From/To date range and clickable cards (item, party, amount) with a read-only detail page. Uses two dummy cards.
 - **Chip rows scroll on desktop**: the Add data / Report rows hid their scrollbar, so Stock (and other chips) were unreachable with a mouse. They now scroll by mouse drag and mouse wheel (touch swipe already worked).
+- **Works the same on any laptop**: added `?v=` cache-busting on the CSS/JS links, system-font fallback for every font (so it looks right offline), and `.gitattributes` (LF line endings) so Windows/Mac clones match. Verified from a fresh clone over `http.server` and as a plain `file://` page.
 - Fixed `script.js` cache and `$$` helper regressions found while testing.
 
 ## Files
