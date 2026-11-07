@@ -16,7 +16,8 @@ After pulling changes, hard refresh (`Ctrl+Shift+R`). If a browser keeps an old 
 
 ## Screens
 
-- **Home**: header (profile left, bell/search right), **Add data** chips (Input by chat, Sales, Purchase, Gold in/out, Upload), **Report** chips (Chat with data, Sales, Purchase, Stock), chat composer, floating tab bar. `+` opens Click / Upload. Sending a message turns Home into an in-place chat thread (canned demo replies).
+- **Home**: header (profile left, bell/search right), **Transaction** chips (Input by chat, Sales, Purchase, Gold in/out, Upload), **Report** chips (Chat with data, Sales, Purchase, Stock), chat composer, floating tab bar. `+` opens Click / Upload.
+- **AI chat**: opened by "Input by chat", "Chat with data", or sending from the Home composer. Full screen with back button (canned demo replies).
 - **Transactions**, **Reports** tabs.
 - **Sales / Purchase entry**: one page, same layout for both (see below).
 - **Sales / Purchase report**: read-only, grouped by date, one row per party and item.
@@ -25,17 +26,25 @@ After pulling changes, hard refresh (`Ctrl+Shift+R`). If a browser keeps an old 
 
 ### Sales / Purchase entry layout
 
-1. **Header card**: Date (auto, d/m/y), Invoice (auto, `SAL-0001` / `PUR-0001`), Customer or Supplier dropdown (with `+ Add new`).
+Field types:
+
+- **Auto (read-only)**: Date, Invoice (`SAL-0001` / `PUR-0001`), Jewell code (`JC-0001`, last saved code + 1, shared by Sales and Purchase), Net weight, Value (Diamond and Color Stone).
+- **Dropdown** (all have Search, `+ Add new`): Customer/Supplier name, Item name, Karat, Shape, Color, Clarity. Karat starts with 24K/22K/18K/14K. The others start empty. Labour "Per" is a fixed Gr. Wt / Nt. Wt. list.
+- **Manual input**: Design no., Gross weight, Purity %, Diamond/Color Stone Weight and Rate, Labour rate, Labour value.
+
+Layout:
+
+1. **Header card**: Date, Invoice, Customer or Supplier.
 2. **Item cards** (repeat per item):
    - Item: Item name, Jewell code, Design no.
-   - **Gold**: Gross weight, Net weight, Purity % (input) and Karat (dropdown, separate).
+   - **Gold**: Gross weight, Net weight, Purity % and Karat.
    - **Diamond**: Shape, Value, Color, Clarity, Weight, Rate.
    - **Color Stone**: same fields as Diamond.
    - **Labour**: Labour rate with a Gr. Wt / Nt. Wt. dropdown, and Labour value.
-3. **Total card**: Total Gross Weight, Net Weight, Diamond Weight, Diamond Value, Labour Amount, Total Amount. Values are `—` in the mockup.
+3. **Total card**: Total Gross Weight, Net Weight, Diamond Weight, Diamond Value, Labour Amount, Total Amount.
 4. **Add more item** adds another item block below (same party and invoice, Remove on each extra item). **Save sales/purchase** saves the whole invoice.
 
-All inputs are plain manual inputs. **No formulas run in the UI**: totals, fine weight, labour value and so on are for the backend to compute.
+Placeholder maths in the UI (backend should own the real rules): Net weight = Gross weight - Diamond weight - Color Stone weight (no ct to g conversion), Value = Weight x Rate, Total Amount = Diamond value + Color Stone value + Labour value.
 
 ### Stock
 
@@ -45,12 +54,20 @@ All inputs are plain manual inputs. **No formulas run in the UI**: totals, fine 
 
 ## Notes for backend
 
-- Saved entry shape (see the save handler in `script.js`): `type, invoice, party, item, net, date`. The form holds all other fields per item (`newItem()`), but only these are stored in the mockup.
+- Saved entry shape (see the save handler in `script.js`): `type, invoice, party, item, code, net, date`. The form holds all other fields per item (`newItem()`), but only these are stored in the mockup.
 - Stock list and detail read from `STOCK_DEMO`, not from saved entries.
 - "Input by chat" and "Upload" are stubs: chat replies are canned and Upload imports 3 sample rows.
 - "Gold in/out" has no screen yet.
 
 ## Changelog
+
+### 2026-11-07
+
+- **Entry fields reworked**: Jewell code (auto, last saved + 1), Net weight and Value (Diamond, Color Stone) are now auto read-only fields; Item name, Karat, Shape, Color, Clarity are dropdowns; Design no., Gross weight, Purity % are manual.
+- **Searchable dropdowns**: every list (Customer/Supplier, Item, Karat, Shape, Color, Clarity) shows "Search" instead of "Select", filters as you type, and keeps `+ Add new`.
+- **Totals card live again**: sums Gross, Net, Diamond weight, Diamond value, Labour, Total Amount from the fields above.
+- **Home**: "Add data" heading renamed to **Transaction**.
+- **AI chat screen**: "Input by chat" and "Chat with data" both open a full-screen AI chat (back button, thread, composer with attach menu). Sending from the Home composer opens the same screen. Replies are still canned.
 
 ### 2026-11-05
 

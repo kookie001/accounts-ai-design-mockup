@@ -53,7 +53,8 @@ const today = () => { const d = new Date(); return `${d.getDate()}/${d.getMonth(
 
 const ledger = {
   entries: [],
-  masters: { customer: [], supplier: [], salesman: [], purchaser: [], item: [], karat: ['24K', '22K', '18K', '14K'], basis: ['Gr. Wt', 'Nt. Wt.'] },
+  masters: { customer: [], supplier: [], salesman: [], purchaser: [], item: [], karat: ['24K', '22K', '18K', '14K'], basis: ['Gr. Wt', 'Nt. Wt.'], shape: [], color: [], clarity: [] },
+  jcLast: 0,
 };
 
 const TRANSACTIONS = [
@@ -101,7 +102,7 @@ $$('[data-chip]').forEach((b) =>
   b.addEventListener('click', () => {
     const k = b.dataset.chip;
     if (k === 'chat') {
-      $('#chatInput').focus();
+      openChat();
     } else if (k === 'upload') attach.hidden = false;
     else toast('Gold in/out');
   }),
@@ -122,48 +123,60 @@ function setTheme(mode) {
 }
 $('#themeRow').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
 
-// ───────────────────────── home: attach menu + chat ─────────────────────────
+// ───────────────────────── attach menus + AI chat ─────────────────────────
 const attach = $('#attachLayer');
 const closeAttach = () => (attach.hidden = true);
-$('#plusBtn').addEventListener('click', () => (attach.hidden = !attach.hidden));
-attach.addEventListener('click', (e) => { if (e.target === attach) closeAttach(); });
-$$('.attach-opt').forEach((b) =>
-  b.addEventListener('click', () => {
-    closeAttach();
-    if (b.dataset.action === 'upload') importSheet();
-    toast(b.dataset.action === 'click' ? 'Photo added' : 'Sheet imported');
-  }),
-);
-
-const input = $('#chatInput');
-input.addEventListener('input', () => {
-  const has = input.value.trim().length > 0;
-  $('#sendBtn').hidden = !has;
-  $('#micBtn').hidden = has;
+$$('.attach-layer').forEach((layer) => {
+  const close = () => (layer.hidden = true);
+  $('[data-plus]', layer.parentElement).addEventListener('click', () => (layer.hidden = !layer.hidden));
+  layer.addEventListener('click', (e) => { if (e.target === layer) close(); });
+  $$('.attach-opt', layer).forEach((b) =>
+    b.addEventListener('click', () => {
+      close();
+      if (b.dataset.action === 'upload') importSheet();
+      toast(b.dataset.action === 'click' ? 'Photo added' : 'Sheet imported');
+    }),
+  );
 });
-input.addEventListener('keydown', (e) => e.key === 'Enter' && sendChat());
-$('#sendBtn').addEventListener('click', sendChat);
+
+function wireComposer(root, onSend) {
+  const field = $('input', root), send = $('[data-send]', root), mic = $('[data-mic]', root);
+  field.addEventListener('input', () => {
+    const has = field.value.trim().length > 0;
+    send.hidden = !has; mic.hidden = has;
+  });
+  const submit = () => {
+    const q = field.value.trim();
+    if (!q) return;
+    field.value = '';
+    field.dispatchEvent(new Event('input'));
+    onSend(q);
+  };
+  field.addEventListener('keydown', (e) => e.key === 'Enter' && submit());
+  send.addEventListener('click', submit);
+  return field;
+}
 
 function bot(text, kind = 'bot') {
-  $('#homeIdle').hidden = true;
-  const thread = $('#chatThread');
-  thread.hidden = false;
   const el = document.createElement('div');
   el.className = `bubble ${kind}`;
   el.textContent = text;
-  thread.appendChild(el);
-  $('#homeScroll').scrollTop = 1e6;
+  $('#chatThread').appendChild(el);
+  $('#chatScroll').scrollTop = 1e6;
   return el;
 }
-function sendChat() {
-  const q = input.value.trim();
-  if (!q) return;
-  input.value = '';
-  input.dispatchEvent(new Event('input'));
+function ask(q) {
   bot(q, 'user');
   const typing = bot('working…', 'typing');
   setTimeout(() => { typing.remove(); bot(demoAnswer(q)); }, 900);
 }
+const chatField = wireComposer($('#chatComposer'), ask);
+function openChat(q) {
+  openStack('screenChat');
+  if (q) ask(q); else setTimeout(() => chatField.focus(), 300);
+}
+wireComposer($('#homeComposer'), openChat);
+
 function demoAnswer() {
   return 'Demo reply.';
 }
@@ -182,49 +195,74 @@ $('#bars').innerHTML = [38, 62, 45, 80, 55, 70, 48]
 function dropdown({ label, kind, suffix = '', fixed = false, get, set, onChange }) {
   const wrap = document.createElement('div');
   wrap.className = 'field dd';
-  let open = false, adding = false;
-  const draw = () => {
-    const opts = ledger.masters[kind];
-    wrap.classList.toggle('open', open);
-    wrap.innerHTML = `<span class="label">${label}</span>
-      <button type="button" class="dd-btn ${get() ? '' : 'empty'}"><span>${get() ? get() + suffix : 'Select'}</span>${svg(open ? 'chev-up' : 'chev-down', 18)}</button>
-      ${open ? `<div class="dd-list">
-        ${opts.length || adding || fixed ? '' : '<div class="dd-note">No options</div>'}
-        ${opts.map((o) => `<button type="button" class="dd-item ${o === get() ? 'sel' : ''}" data-v="${o}">${o}${suffix}</button>`).join('')}
-        ${fixed ? '' : adding
-          ? `<div class="dd-new"><input placeholder="New ${label.toLowerCase()}" autofocus><button type="button" data-ok>${svg('check', 18)}</button></div>`
-          : `<button type="button" class="dd-add">${svg('add-circle', 18)} Add new</button>`}
-      </div>` : ''}`;
-    $('.dd-btn', wrap).onclick = () => { open = !open; adding = false; draw(); };
-    $$('.dd-item', wrap).forEach((b) => (b.onclick = () => { set(b.dataset.v); open = false; draw(); onChange(); }));
-    const add = $('.dd-add', wrap);
-    if (add) add.onclick = () => { adding = true; draw(); $('.dd-new input', wrap).focus(); };
-    const ok = $('[data-ok]', wrap);
+  let open = false, adding = false, q = '';
+  const pick = (v) => { set(v); open = false; adding = false; q = ''; draw(); onChange(); };
+
+  const list = () => {
+    const box = $('.dd-list', wrap);
+    const all = ledger.masters[kind];
+    const shown = fixed ? all : all.filter((o) => o.toLowerCase().includes(q.trim().toLowerCase()));
+    box.innerHTML = `${shown.length || adding ? '' : `<div class="dd-note">${all.length ? 'No match' : 'No options'}</div>`}
+      ${shown.map((o) => `<button type="button" class="dd-item ${o === get() ? 'sel' : ''}" data-v="${esc(o)}">${esc(o)}${suffix}</button>`).join('')}
+      ${fixed ? '' : adding
+        ? `<div class="dd-new"><input placeholder="New ${label.toLowerCase()}" value="${esc(q)}"><button type="button" data-ok>${svg('check', 18)}</button></div>`
+        : `<button type="button" class="dd-add">${svg('add-circle', 18)} Add new</button>`}`;
+    $$('.dd-item', box).forEach((b) => (b.onclick = () => pick(b.dataset.v)));
+    const add = $('.dd-add', box);
+    if (add) add.onclick = () => { adding = true; list(); $('.dd-new input', box).focus(); };
+    const ok = $('[data-ok]', box);
     if (ok) {
+      const field = $('.dd-new input', box);
       const commit = () => {
-        const name = $('.dd-new input', wrap).value.trim();
+        const name = field.value.trim();
         if (!name) return;
-        if (!opts.some((o) => o.toLowerCase() === name.toLowerCase())) opts.push(name);
-        set(name); open = false; adding = false; draw(); onChange();
+        const hit = ledger.masters[kind].find((o) => o.toLowerCase() === name.toLowerCase());
+        if (!hit) ledger.masters[kind].push(name);
+        pick(hit || name);
       };
       ok.onclick = commit;
-      $('.dd-new input', wrap).onkeydown = (e) => e.key === 'Enter' && commit();
+      field.onkeydown = (e) => e.key === 'Enter' && commit();
     }
+  };
+
+  const draw = () => {
+    wrap.classList.toggle('open', open);
+    const chev = `<span class="dd-chev">${svg(open ? 'chev-up' : 'chev-down', 18)}</span>`;
+    wrap.innerHTML = `<span class="label">${label}</span>` + (open && !fixed
+      ? `<div class="dd-btn searching"><input class="dd-search" placeholder="Search" value="${esc(q)}" autocomplete="off">${chev}</div>`
+      : `<button type="button" class="dd-btn ${get() ? '' : 'empty'}"><span>${get() ? esc(get()) + suffix : fixed ? 'Select' : 'Search'}</span>${chev}</button>`)
+      + (open ? '<div class="dd-list"></div>' : '');
+    const btn = $('.dd-btn', wrap);
+    if (open && !fixed) {
+      const s = $('.dd-search', wrap);
+      s.oninput = () => { q = s.value; if (adding) adding = false; list(); };
+      $('.dd-chev', wrap).onclick = () => { open = false; adding = false; q = ''; draw(); };
+      s.focus();
+    } else {
+      btn.onclick = () => { open = !open; adding = false; q = ''; draw(); };
+    }
+    if (open) list();
   };
   draw();
   return wrap;
 }
 
-const newItem = () => ({ name: '', code: '', design: '', gross: '', net: '', purity: '', karat: '',
-  dShape: '', dValue: '', dColor: '', dClarity: '', dWt: '', dRate: '',
-  cShape: '', cValue: '', cColor: '', cClarity: '', cWt: '', cRate: '', lRate: '', lBasis: '', lValue: '' });
+const newItem = () => ({ name: '', code: '', design: '', gross: '', purity: '', karat: '',
+  dShape: '', dColor: '', dClarity: '', dWt: '', dRate: '',
+  cShape: '', cColor: '', cClarity: '', cWt: '', cRate: '', lRate: '', lBasis: '', lValue: '' });
 const esc = (v) => String(v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const nextInvoice = (type) => {
   const used = new Set(ledger.entries.filter((e) => e.type === type).map((e) => e.invoice).filter(Boolean));
   return `${type === 'sales' ? 'SAL' : 'PUR'}-${String(used.size + 1).padStart(4, '0')}`;
 };
+const jewelCode = (n) => `JC-${String(n).padStart(4, '0')}`;
 
 const TOTAL_LABELS = ['Total Gross Weight', 'Total Net Weight', 'Total Diamond Weight', 'Total Diamond Value', 'Total Labour Amount', 'Total Amount'];
+const DD = {
+  name: { label: 'Item name', kind: 'item' }, karat: { label: 'Karat', kind: 'karat' }, lBasis: { label: 'Per', kind: 'basis', fixed: true },
+  dShape: { label: 'Shape', kind: 'shape' }, dColor: { label: 'Color', kind: 'color' }, dClarity: { label: 'Clarity', kind: 'clarity' },
+  cShape: { label: 'Shape', kind: 'shape' }, cColor: { label: 'Color', kind: 'color' }, cClarity: { label: 'Clarity', kind: 'clarity' },
+};
 
 function renderEntry(type) {
   const isSales = type === 'sales';
@@ -236,10 +274,12 @@ function renderEntry(type) {
   const body = $('#entryBody');
   const inp = (label, key, it, ph = '', mode = 'decimal') =>
     `<div class="field"><span class="label">${label}</span><input data-f="${key}" inputmode="${mode}" placeholder="${ph}" value="${esc(it[key])}"></div>`;
+  const dd = (key) => `<div data-dd="${key}"></div>`;
+  const auto = (label, o) => `<div class="field"><span class="label">${label}</span><div class="auto"><b data-o="${o}">—</b></div></div>`;
   const stoneCard = (label, p, it) => `
     <div class="float-card"><h3 class="card-title">${label}</h3>
-      <div class="row2">${inp('Shape', p + 'Shape', it, '', 'text')}${inp('Value', p + 'Value', it, '0')}</div>
-      <div class="row2">${inp('Color', p + 'Color', it, '', 'text')}${inp('Clarity', p + 'Clarity', it, '', 'text')}</div>
+      <div class="row2">${dd(p + 'Shape')}${auto('Value', p + 'Value')}</div>
+      <div class="row2">${dd(p + 'Color')}${dd(p + 'Clarity')}</div>
       <div class="row2">${inp('Weight', p + 'Wt', it, '0')}${inp('Rate', p + 'Rate', it, '0')}</div>
     </div>`;
 
@@ -257,14 +297,29 @@ function renderEntry(type) {
     </div>`;
 
   const calc = () => {
-    // Totals are computed by the backend; the UI only renders them.
-    $('#totals').innerHTML = TOTAL_LABELS.map((k) => `<div class="tot-row"><span>${k}</span><b>—</b></div>`).join('');
+    const t = { gross: 0, net: 0, dWt: 0, dVal: 0, lab: 0, total: 0 };
+    items.forEach((it) => {
+      const dVal = num(it.dWt) * num(it.dRate);
+      const cVal = num(it.cWt) * num(it.cRate);
+      const net = num(it.gross) - num(it.dWt) - num(it.cWt);
+      Object.assign(it, { _net: net, _dVal: dVal, _cVal: cVal });
+      const set = (o, v) => ($(`[data-o="${o}"]`, it.el).textContent = v);
+      set('net', it.gross === '' ? '—' : wt(net));
+      set('dValue', dVal ? inr(dVal) : '—');
+      set('cValue', cVal ? inr(cVal) : '—');
+      t.gross += num(it.gross); t.net += it.gross === '' ? 0 : net; t.dWt += num(it.dWt);
+      t.dVal += dVal; t.lab += num(it.lValue); t.total += dVal + cVal + num(it.lValue);
+    });
+    const vals = [wt(t.gross), wt(t.net), wt(t.dWt), inr(t.dVal), inr(t.lab), inr(t.total)];
+    $('#totals').innerHTML = TOTAL_LABELS.map((k, i) => `<div class="tot-row"><span>${k}</span><b>${vals[i]}</b></div>`).join('');
     $('#saveBtn').disabled = !(head.party && items.every((it) => it.name.trim()));
   };
 
   const numberItems = () => items.forEach((it, i) => {
     $('.item-head', it.el).hidden = items.length < 2;
     $('.item-head b', it.el).textContent = `Item ${i + 1}`;
+    it.code = jewelCode(ledger.jcLast + i + 1);
+    $('[data-o="code"]', it.el).textContent = it.code;
   });
 
   const addItem = () => {
@@ -274,21 +329,23 @@ function renderEntry(type) {
     el.innerHTML = `
       <div class="item-head"><b></b><button type="button" class="item-rm">Remove</button></div>
       <div class="float-card">
-        ${inp('Item name', 'name', it, '', 'text')}${inp('Jewell code', 'code', it, '', 'text')}${inp('Design no.', 'design', it, '', 'text')}
+        ${dd('name')}${auto('Jewell code', 'code')}${inp('Design no.', 'design', it, '', 'text')}
       </div>
       <div class="float-card"><h3 class="card-title">Gold</h3>
-        <div class="row2">${inp('Gross weight', 'gross', it, '0')}${inp('Net weight', 'net', it, '0')}</div>
-        <div class="row2">${inp('Purity %', 'purity', it, '0')}<div data-dd="karat"></div></div>
+        <div class="row2">${inp('Gross weight', 'gross', it, '0')}${auto('Net weight', 'net')}</div>
+        <div class="row2">${inp('Purity %', 'purity', it, '0')}${dd('karat')}</div>
       </div>
       ${stoneCard('Diamond', 'd', it)}${stoneCard('Color Stone', 'c', it)}
       <div class="float-card"><h3 class="card-title">Labour</h3>
-        <div class="row2">${inp('Labour rate', 'lRate', it, '0')}<div data-dd="basis"></div></div>
+        <div class="row2">${inp('Labour rate', 'lRate', it, '0')}${dd('lBasis')}</div>
         ${inp('Labour value', 'lValue', it, '0')}
       </div>`;
     it.el = el;
     $$('[data-f]', el).forEach((x) => x.addEventListener('input', () => { it[x.dataset.f] = x.value; calc(); }));
-    $('[data-dd="karat"]', el).appendChild(dropdown({ label: 'Karat', kind: 'karat', get: () => it.karat, set: (v) => (it.karat = v), onChange: calc }));
-    $('[data-dd="basis"]', el).appendChild(dropdown({ label: 'Per', kind: 'basis', fixed: true, get: () => it.lBasis, set: (v) => (it.lBasis = v), onChange: calc }));
+    $$('[data-dd]', el).forEach((slot) => {
+      const key = slot.dataset.dd;
+      slot.replaceWith(dropdown({ ...DD[key], get: () => it[key], set: (v) => (it[key] = v), onChange: calc }));
+    });
     $('.item-rm', el).onclick = () => { items.splice(items.indexOf(it), 1); el.remove(); numberItems(); calc(); };
     $('#itemList').appendChild(el);
     numberItems();
@@ -301,7 +358,8 @@ function renderEntry(type) {
   addItem();
   $('#addItemBtn').onclick = () => { const el = addItem(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   $('#saveBtn').onclick = () => {
-    items.forEach((it) => addEntry({ type, invoice, party: head.party, item: it.name.trim(), net: it.net }));
+    items.forEach((it) => addEntry({ type, invoice, party: head.party, item: it.name.trim(), code: it.code, net: it._net }));
+    ledger.jcLast += items.length;
     toast(`${title} saved`);
     renderEntry(type);
     $('#screenEntry .scroll').scrollTop = 0;

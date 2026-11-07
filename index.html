@@ -6,7 +6,7 @@
 <title>Accounts AI — Design Mockup</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20261105">
+<link rel="stylesheet" href="styles.css?v=20261107">
 </head>
 <body>
 
@@ -33,7 +33,7 @@
           </header>
 
           <div id="homeIdle">
-            <h2 class="section-title">Add data</h2>
+            <h2 class="section-title">Transaction</h2>
             <div class="chips">
               <button class="chip" data-chip="chat"><span data-icon="chat" data-size="16"></span>Input by chat</button>
               <button class="chip" data-go="sales"><span data-icon="trending" data-size="16"></span>Sales</button>
@@ -51,16 +51,15 @@
             </div>
           </div>
 
-          <div id="chatThread" class="thread" hidden></div>
         </div>
 
         <!-- composer -->
-        <div class="composer-wrap">
+        <div class="composer-wrap" id="homeComposer">
           <div class="composer glass">
-            <button class="round" id="plusBtn" aria-label="Add"><span data-icon="plus" data-size="22"></span></button>
+            <button class="round" id="plusBtn" data-plus aria-label="Add"><span data-icon="plus" data-size="22"></span></button>
             <input id="chatInput" placeholder="Ask about a bill, invoice, or amount…" autocomplete="off">
-            <button class="round" id="micBtn" aria-label="Mic"><span data-icon="mic" data-size="19"></span></button>
-            <button class="round send" id="sendBtn" aria-label="Send" hidden><span data-icon="arrow-up" data-size="19"></span></button>
+            <button class="round" id="micBtn" data-mic aria-label="Mic"><span data-icon="mic" data-size="19"></span></button>
+            <button class="round send" id="sendBtn" data-send aria-label="Send" hidden><span data-icon="arrow-up" data-size="19"></span></button>
           </div>
         </div>
 
@@ -155,6 +154,32 @@
         </div>
       </section>
 
+      <!-- AI CHAT -->
+      <section class="screen stack" id="screenChat">
+        <div class="glow glow-a"></div>
+        <div class="scroll" id="chatScroll">
+          <div class="topbar">
+            <button class="icon-btn" data-action="back"><span data-icon="chev-left" data-size="20"></span></button>
+            <h1>AI chat</h1>
+          </div>
+          <div id="chatThread" class="thread"></div>
+        </div>
+        <div class="composer-wrap stack" id="chatComposer">
+          <div class="composer glass">
+            <button class="round" data-plus aria-label="Add"><span data-icon="plus" data-size="22"></span></button>
+            <input placeholder="Ask about a bill, invoice, or amount…" autocomplete="off">
+            <button class="round" data-mic aria-label="Mic"><span data-icon="mic" data-size="19"></span></button>
+            <button class="round send" data-send aria-label="Send" hidden><span data-icon="arrow-up" data-size="19"></span></button>
+          </div>
+        </div>
+        <div class="attach-layer" id="attachLayer2" hidden>
+          <div class="attach-menu">
+            <button class="attach-opt" data-action="click"><span class="attach-ic"><span data-icon="camera" data-size="19"></span></span><span><b>Click</b><small>Camera se photo</small></span></button>
+            <button class="attach-opt" data-action="upload"><span class="attach-ic"><span data-icon="upload" data-size="19"></span></span><span><b>Upload</b><small>Excel / CSV file</small></span></button>
+          </div>
+        </div>
+      </section>
+
       <!-- STOCK DETAIL -->
       <section class="screen stack" id="screenStockDetail">
         <div class="glow glow-a"></div>
@@ -192,6 +217,6 @@
   </div>
 </div>
 
-<script src="script.js?v=20261105"></script>
+<script src="script.js?v=20261107"></script>
 </body>
 </html>

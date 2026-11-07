@@ -275,3 +275,12 @@ body {
 .kv:last-child { border-bottom: 0; }
 .kv span { color: var(--ink-soft); } .kv b { font: 700 14px 'Plus Jakarta Sans', system-ui, sans-serif; text-align: right; }
 button.stock-row { display: block; width: calc(100% - 40px); color: var(--ink); text-align: left; cursor: pointer; }
+
+/* searchable dropdown + AI chat screen */
+.dd-btn.searching { cursor: text; }
+.field .dd-search { flex: 1; min-width: 0; width: auto; padding: 0; border: 0; border-radius: 0; background: none; font: 600 16px 'Manrope', system-ui, sans-serif; }
+.dd-chev { display: inline-flex; cursor: pointer; }
+.dd-list { max-height: 220px; overflow-y: auto; }
+.composer-wrap.stack { bottom: 8px; }
+#attachLayer2 .attach-menu { bottom: 84px; }
+.field .auto { min-height: 48px; }
