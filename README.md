@@ -28,7 +28,7 @@ After pulling changes, hard refresh (`Ctrl+Shift+R`). If a browser keeps an old 
 
 Field types:
 
-- **Auto (read-only)**: Date, Invoice (`SAL-0001` / `PUR-0001`), Jewell code (`JC-0001`, last saved code + 1, shared by Sales and Purchase), Net weight, Value (Diamond and Color Stone).
+- **Auto (read-only)**: Date, Invoice (`SAL-0001` / `PUR-0001`), Jewell code (`JC-0001` format, fetched from the selected Item name: a known item shows its saved code, a new item gets last saved code + 1; shared by Sales and Purchase; `—` until an item is chosen), Net weight, Value (Diamond and Color Stone).
 - **Dropdown** (all have Search, `+ Add new`): Customer/Supplier name, Item name, Karat, Shape, Color, Clarity. Karat starts with 24K/22K/18K/14K. The others start empty. Labour "Per" is a fixed Gr. Wt / Nt. Wt. list.
 - **Manual input**: Design no., Gross weight, Purity %, Diamond/Color Stone Weight and Rate, Labour rate, Labour value.
 
@@ -63,7 +63,9 @@ Placeholder maths in the UI (backend should own the real rules): Net weight = Gr
 
 ### 2026-11-07
 
-- **Entry fields reworked**: Jewell code (auto, last saved + 1), Net weight and Value (Diamond, Color Stone) are now auto read-only fields; Item name, Karat, Shape, Color, Clarity are dropdowns; Design no., Gross weight, Purity % are manual.
+- **Jewell code follows the item**: selecting an existing Item name fetches that item's code; a new item gets the next code (last + 1); same item twice in one invoice shares one code.
+- **Chip labels**: "Input by chat" and "Chat with data" are both renamed **AI chat**. Behaviour is unchanged (both open the AI chat screen) and can diverge later.
+- **Entry fields reworked**: Jewell code (auto, from the selected item), Net weight and Value (Diamond, Color Stone) are now auto read-only fields; Item name, Karat, Shape, Color, Clarity are dropdowns; Design no., Gross weight, Purity % are manual.
 - **Searchable dropdowns**: every list (Customer/Supplier, Item, Karat, Shape, Color, Clarity) shows "Search" instead of "Select", filters as you type, and keeps `+ Add new`.
 - **Totals card live again**: sums Gross, Net, Diamond weight, Diamond value, Labour, Total Amount from the fields above.
 - **Home**: "Add data" heading renamed to **Transaction**.

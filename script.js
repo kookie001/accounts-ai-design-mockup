@@ -55,6 +55,7 @@ const ledger = {
   entries: [],
   masters: { customer: [], supplier: [], salesman: [], purchaser: [], item: [], karat: ['24K', '22K', '18K', '14K'], basis: ['Gr. Wt', 'Nt. Wt.'], shape: [], color: [], clarity: [] },
   jcLast: 0,
+  itemCodes: {}, // item name (lowercase) -> Jewell code
 };
 
 const TRANSACTIONS = [
@@ -298,6 +299,7 @@ function renderEntry(type) {
 
   const calc = () => {
     const t = { gross: 0, net: 0, dWt: 0, dVal: 0, lab: 0, total: 0 };
+    assignCodes();
     items.forEach((it) => {
       const dVal = num(it.dWt) * num(it.dRate);
       const cVal = num(it.cWt) * num(it.cRate);
@@ -318,9 +320,26 @@ function renderEntry(type) {
   const numberItems = () => items.forEach((it, i) => {
     $('.item-head', it.el).hidden = items.length < 2;
     $('.item-head b', it.el).textContent = `Item ${i + 1}`;
-    it.code = jewelCode(ledger.jcLast + i + 1);
-    $('[data-o="code"]', it.el).textContent = it.code;
   });
+
+  // Jewell code follows the chosen item: known item -> its code, new item -> last code + 1.
+  const assignCodes = () => {
+    const fresh = new Map();
+    items.forEach((it) => {
+      const key = it.name.trim().toLowerCase();
+      let code = '';
+      if (key) {
+        code = ledger.itemCodes[key];
+        if (!code) {
+          if (!fresh.has(key)) fresh.set(key, jewelCode(ledger.jcLast + fresh.size + 1));
+          code = fresh.get(key);
+        }
+      }
+      it.code = code;
+      $('[data-o="code"]', it.el).textContent = code || '—';
+    });
+    return fresh;
+  };
 
   const addItem = () => {
     const it = newItem();
@@ -358,8 +377,10 @@ function renderEntry(type) {
   addItem();
   $('#addItemBtn').onclick = () => { const el = addItem(); el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   $('#saveBtn').onclick = () => {
+    const fresh = assignCodes();
     items.forEach((it) => addEntry({ type, invoice, party: head.party, item: it.name.trim(), code: it.code, net: it._net }));
-    ledger.jcLast += items.length;
+    fresh.forEach((code, key) => (ledger.itemCodes[key] = code));
+    ledger.jcLast += fresh.size;
     toast(`${title} saved`);
     renderEntry(type);
     $('#screenEntry .scroll').scrollTop = 0;
