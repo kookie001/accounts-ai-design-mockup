@@ -7,10 +7,10 @@ Static, click-through **HTML/CSS/JS** mockup of the Accounts AI app (Android pho
 No build step.
 
 ```bash
-python -m http.server 8103
+python serve.py
 ```
 
-Open `http://localhost:8103`. You can also just double-click `index.html` (no server needed). It needs no install and no internet; fonts fall back to the system font when offline.
+`serve.py` is a tiny static server that sends no-cache headers, so a `git pull` always shows the latest version (plain `python -m http.server 8103` also works but browsers may keep showing an old copy). Open `http://localhost:8103`. You can also just double-click `index.html` (no server needed). It needs no install and no internet; fonts fall back to the system font when offline.
 
 After pulling changes, hard refresh (`Ctrl+Shift+R`). If a browser keeps an old copy, bump the `?v=` number on the `styles.css` / `script.js` links in `index.html`.
 
@@ -63,6 +63,7 @@ Placeholder maths in the UI (backend should own the real rules): Net weight = Gr
 
 ### 2026-11-07
 
+- **Stale page fix**: added `serve.py` (no-cache static server). The browser was reusing an old cached `index.html`, so new changes (AI chat labels, Jewell code) did not show. Use `python serve.py` and hard refresh once.
 - **Jewell code follows the item**: selecting an existing Item name fetches that item's code; a new item gets the next code (last + 1); same item twice in one invoice shares one code.
 - **Chip labels**: "Input by chat" and "Chat with data" are both renamed **AI chat**. Behaviour is unchanged (both open the AI chat screen) and can diverge later.
 - **Entry fields reworked**: Jewell code (auto, from the selected item), Net weight and Value (Diamond, Color Stone) are now auto read-only fields; Item name, Karat, Shape, Color, Clarity are dropdowns; Design no., Gross weight, Purity % are manual.
